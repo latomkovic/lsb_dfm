@@ -1,0 +1,6 @@
+[submodule "sfbay_potw"]
+	path = sfbay_potw
+	url = https://github.com/rustychris/sfbay_potw.git
+[submodule "sfbay_freshwater"]
+	path = sfbay_freshwater
+	url = ssh://git@stash.sfei.org:7999/nm/sfbay_freshwater.git
