@@ -252,14 +252,14 @@ if 1:
                             # outside the domain to the new location in the domain.
                             if grid.select_cells_nearest(old_geo[-1,:2],inside=True) is None:
                                 feat[1]=np.concatenate( (old_geo,new_geo),axis=0 )
+                                if len(feat)==3: # includes labels, but they don't matter here, right?
+                                    feat[2].append('')
                             else:
                                 # but if the original location is inside the grid, this will be interpreted
                                 # as a sink-source pair, so we instead just put the single, adjusted
                                 # location in.  This is done after potentially copying z-coordinate
                                 # data from the original location.
                                 feat[1]=new_geo
-                            if len(feat)==3: # includes labels, but they don't matter here, right?
-                                feat[2].append('')
                         break
 
                 dio.write_pli(pli_fp,[feat])
@@ -271,6 +271,111 @@ if 1:
                                                   potw.flow[tidx],
                                                   0.0, # salinity
                                                   20.0)) # temperature...
+
+
+##
+
+# Ocean and Delta boundary conditions
+# copied Silvia's pli files to inputs-static
+# even though there are 14 of these, one per node of the sea boundary,
+# they all appear to have the same data, even the tidal height time series.
+# Sea_temp: probably grabbed from Point Reyes?
+# Sea_sal: constant 33
+# Sea_0001.pli - 
+
+# Per Silvia's Thesis:
+
+# Jersey: Discharge boundary affected by tides, discharge and temperature taken
+# from USGS 11337190 SAN JOAQUIN R A JERSEY POINT, 0 salinity
+# (Note that Dutch Slough should probably be added in here)
+
+# Rio Vista: 11455420 SACRAMENTO A RIO VISTA, temperature from DWR station RIV.
+# 0 salinity.
+
+# Ocean:
+#  Water level data from station 46214 (apparently from Yi Chao's ROMS?)
+#    no spatial variation
+#  Maybe salinity from Yi Chao ROMS.
+
+# Fetch river USGS river flows, add to FlowFM_bnd.ext:
+
+# Cache the original data from USGS, then clean it and write to DFM format
+jersey_raw_fn=os.path.join(run_base_dir,'jersey-raw.nc')
+if not os.path.exists(jersey_raw_fn):
+    jersey_raw=usgs_nwis.nwis_dataset(station="11337190",
+                                      start_date=run_start,end_date=run_stop,
+                                      products=[60, # "Discharge, cubic feet per second"
+                                                10], # "Temperature, water, degrees Celsius"
+                                      days_per_request=30)
+    jersey_raw.to_netcdf(jersey_raw_fn,engine='scipy')
+
+rio_vista_raw_fn=os.path.join(run_base_dir,'rio_vista-raw.nc')
+if not os.path.exists(rio_vista_raw_fn):
+    rio_vista_raw=usgs_nwis.nwis_dataset(station="11455420",
+                                         start_date=run_start,end_date=run_stop,
+                                         products=[60, # "Discharge, cubic feet per second"
+                                                   10], # "Temperature, water, degrees Celsius"
+                                         days_per_request=30)
+    rio_vista_raw.to_netcdf(rio_vista_raw_fn,engine='scipy')
+
+##
+
+jersey_raw=xr.open_dataset(jersey_raw_fn)
+rio_vista_raw=xr.open_dataset(rio_vista_raw_fn)
+
+## 
+# fill any missing data via linear interpolation
+def fill_data(da):
+    valid=np.isfinite(da.values)
+    valid_times=da.time[valid]
+    dt=np.median(np.diff(da.time))
+    dt_gap = np.diff(da.time[valid]).max()
+    if dt_gap > dt:
+        log.warning("%s: gaps up to %.1f minutes"%(da.name, dt_gap/np.timedelta64(60,'s')))
+    da.values = utils.fill_invalid(da.values)    
+
+fill_data(jersey_raw.stream_flow_mean_daily)
+fill_data(jersey_raw.temperature_water)
+
+fill_data(rio_vista_raw.stream_flow_mean_daily)
+fill_data(rio_vista_raw.temperature_water)
+
+##
+
+# Write those out --
+for src_name,source in [ ('Jersey',jersey_raw),
+                         ('RioVista',rio_vista_raw)]:
+    # Add a stanze to FlowFMnew_bnd.ext:
+    with open(os.path.join(run_base_dir,'FlowFMnew_bnd.ext'),'at') as fp:
+        for quant in ['dischargebnd','temperaturebnd']:
+            fp.write("\n".join(["\n[boundary]",
+                                "quantity=%s"%quant,
+                                "locationfile=%s.pli"%src_name,
+                                "forcingfile=%s.bc"%src_name,
+                                "return_time=0 # disable thatcher-harlemann",
+                                ""]))
+    
+    # Write the data:
+    df=source.to_dataframe().reset_index()
+    df['unix_time']=utils.to_unix(df.time.values)
+    df['flow_cms']=0.028316847 * df['stream_flow_mean_daily']
+    with open(os.path.join(run_base_dir,'%s.bc'%src_name),'wt') as bc_fp:
+        bc_fp.write("[forcing]\n")
+        # 'Name' needs to match the name in the pli
+        bc_fp.write("Name               = %s_0001\n"%src_name)
+        bc_fp.write("Function           = timeseries\n")
+        bc_fp.write("Time-interpolation = linear\n")
+        bc_fp.write("Quantity           = time\n")
+        bc_fp.write("Unit               = seconds since 1970-01-01 00:00:00\n")
+        bc_fp.write("Quantity           = dischargebnd\n")
+        bc_fp.write("Unit               = m3 s-1\n")  # was "m³/s\n", but prefer simpler characters
+        bc_fp.write("Quantity           = temperaturebnd\n")
+        bc_fp.write("Unit               = degC\n")
+
+        df.to_csv(bc_fp, sep=' ', index=False, header=False, columns=['unix_time', 'flow_cms','temperature_water'])
+
+    # And copy the pli:
+    
 
 ## 
 # Edits to the template mdu:
