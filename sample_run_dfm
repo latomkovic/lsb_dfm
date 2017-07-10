@@ -1,0 +1,10 @@
+#!/bin/bash
+#$ -V
+#$ -cwd
+#$ -N sfb_dflowfm
+#$ -m bea
+#$ -M emman@sfei.org
+
+export PATH=/home/rusty/code/dfm/bin:$PATH
+
+mpiexec -n 16 dflowfm --autostartstop r14.mdu > out.txt 2> err.txt
