@@ -27,10 +27,15 @@ DAY=np.timedelta64(86400,'s') # useful for adjusting times
 ## --------------------------------------------------
 
 # Parameters to control more specific aspects of the run
-run_name="short_20120801_p24" 
-run_start=np.datetime64('2012-08-01')
-run_stop=np.datetime64('2012-08-10')
-
+if 0: # nice short setup for testing:
+    run_name="short_20120801_p24" 
+    run_start=np.datetime64('2012-08-01')
+    run_stop=np.datetime64('2012-08-10')
+if 1: # wy2013 with spinup
+    run_name="wy2013" 
+    run_start=np.datetime64('2012-08-01')
+    run_stop=np.datetime64('2013-10-01')
+    
 ## --------------------------------------------------
 
 # Derived parameters used in multiple places
@@ -419,7 +424,7 @@ if 1: # Ocean BCs from Point Reyes
 
     if 1:
         # Clean that up, fabricate salinity
-        ptreyes=xr.open_dataset(ptreyes_raw_fn)
+        ptreyes=xr.open_dataset(ptreyes_raw_fn).isel(station=0)
 
         # fill any missing data via linear interpolation
         def fill_data(da):
