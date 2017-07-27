@@ -6,6 +6,7 @@ Uses sfei_v18 grid, a Southbay-enhancement of the SF Bay/Delta community
 model grid.
 """
 import os
+import pdb
 import io
 import shutil
 import numpy as np
@@ -27,15 +28,19 @@ DAY=np.timedelta64(86400,'s') # useful for adjusting times
 ## --------------------------------------------------
 
 # Parameters to control more specific aspects of the run
-if 0: # nice short setup for testing:
+if 1: # nice short setup for testing:
     run_name="short_20120801_p24" 
     run_start=np.datetime64('2012-08-01')
     run_stop=np.datetime64('2012-08-10')
-if 1: # wy2013 with spinup
+if 0: # wy2013 with spinup
     run_name="wy2013" 
     run_start=np.datetime64('2012-08-01')
     run_stop=np.datetime64('2013-10-01')
-    
+
+
+# debugging - set all volumetric flow rates to 1m3/s.
+ALL_FLOWS_UNIT=True
+
 ## --------------------------------------------------
 
 # Derived parameters used in multiple places
@@ -49,24 +54,36 @@ run_base_dir=os.path.join(base_dir,'runs',run_name)
 static_dir=os.path.relpath(os.path.join(base_dir,'inputs-static'),
                            run_base_dir)
 
-# reference date - can only be specified to day precision, so it may not
+# reference date - can only be specified to day precision, so 
 # truncate to day precision (rounds down)
 ref_date=run_start.astype('datetime64[D]')
 
 net_file = os.path.join(base_dir,'sfei_v18_net.nc')
 
-new_bc_fn = os.path.join(run_base_dir,'FlowFMnew_bnd.ext')
+# No longer using any new-style boundary conditions
 old_bc_fn = os.path.join(run_base_dir,'FlowFMold_bnd.ext')
 
 obs_shp_fn = os.path.join(base_dir,'inputs-static','observation-points.shp')
 
 ##
 
+# Utility methods
+def add_suffix_to_feature(feat,suffix):
+    name=feat[0]
+    suffize=lambda s: s.replace(name,name+suffix)
+    feat_suffix=[suffize(feat[0]), feat[1]] # points stay the same
+    if len(feat)==3: # includes names for nodes
+        feat_suffix.append( [suffize(s) for s in feat[2]] )
+    return feat_suffix
+
+
+
+## 
 # Make sure run directory exists:
 os.path.exists(run_base_dir) or os.makedirs(run_base_dir)
 
 # and that the bc files are clear:
-for fn in [new_bc_fn,old_bc_fn]:
+for fn in [old_bc_fn]:
     os.path.exists(fn) and os.unlink(fn)
 
 ##
@@ -110,14 +127,6 @@ if 1:
 # features which have manually set locations for this grid
 adjusted_pli_fn = os.path.join(base_dir,'nudged_features.pli')
 
-if 0: # doesn't work for Delta Shell to write all the features into a single file
-    fresh_pli_fn = os.path.join(run_base_dir, 'freshwater.pli')
-else:
-    fresh_pli_fn = None # will write features one-by-one
-
-# It does work to have a single bc file holding the data and variables.
-fresh_bc_fn = os.path.join(run_base_dir, 'freshwater.bc')
-
 if 1: #  Freshwater flows from git submodule
     adjusted_features=dio.read_pli(adjusted_pli_fn)
     # Add the freshwater flows - could come from erddap, but use github submodule
@@ -130,12 +139,9 @@ if 1: #  Freshwater flows from git submodule
 
     full_flows_ds = xr.open_dataset(os.path.join(freshwater_dir, 'outputs', 'sfbay_freshwater.nc'))
 
+    # period of the full dataset which will be include for this run
     sel=(full_flows_ds.time > run_start - 5*DAY) & (full_flows_ds.time < run_stop + 5*DAY)
     flows_ds = full_flows_ds.isel(time=sel)
-
-    pli_data=[]
-
-    bc_fp = open(fresh_bc_fn, 'wt')
 
     for stni in range(len(flows_ds.station)):
         stn_ds=flows_ds.isel(station=stni)
@@ -154,59 +160,60 @@ if 1: #  Freshwater flows from git submodule
                 if adj_feat[0] == src_name:
                     feat=adj_feat
                     break
+            # Write copies for flow, salinity and temperatures
+            for suffix in ['_flow','_salt','_temp']:
+                # function to add suffix
+                feat_suffix=add_suffix_to_feature(feat,suffix)
+                pli_fn=os.path.join(run_base_dir,"%s%s.pli"%(src_name,suffix))
+                dio.write_pli(pli_fn,[feat_suffix])
 
-            pli_data.append(feat)
-
-        if 1: #-- Write a BC file
+        if 1: #-- Write the time series and stanza in FlowFM_bnd.ext
             df=stn_ds.to_dataframe().reset_index()
+            df['elapsed_minutes']=(df.time.values - ref_date)/np.timedelta64(60,'s')
+            df['salinity']=0*df.flow_cms
+            df['temperature']=20+0*df.flow_cms
 
-            df['unix_time']=utils.to_unix(df.time.values)
+            if ALL_FLOWS_UNIT:
+                df['flow_cms']=1.0+0*df.flow_cms
+                
+            for quantity,suffix in [ ('dischargebnd','_flow'),
+                                     ('salinitybnd','_salt'),
+                                     ('temperaturebnd','_temp') ]:
+                lines=['QUANTITY=%s'%quantity,
+                       'FILENAME=%s%s.pli'%(src_name,suffix),
+                       'FILETYPE=9',
+                       'METHOD=3',
+                       'OPERAND=O',
+                       ""]
+                with open(old_bc_fn,'at') as fp:
+                    fp.write("\n".join(lines))
 
-            # I think the 0001 has to be there, as it is used to
-            # specify different values at different nodes of the pli
-            # seems better to assume that incoming data is a daily average,
-            # and keep it constant across the day
-            # block-from means that the timestamp of a datum marks the beginning
-            # of a period, and the value is held constant until the next timestamp
-            # how about unix epoch for time units?
-            bc_fp.write("[forcing]\n")
-            # This Name needs to match the name in the pli
-            bc_fp.write("Name               = %s_0001\n"%src_name)
-            bc_fp.write("Function           = timeseries\n")
-            bc_fp.write("Time-interpolation = block-from\n") # or linear, block-to 
-            bc_fp.write("Quantity           = time\n")
-            bc_fp.write("Unit               = seconds since 1970-01-01 00:00:00\n")
-            bc_fp.write("Quantity           = dischargebnd\n")
-            bc_fp.write("Unit               = m3 s-1\n")  # was "m³/s\n", but prefer simpler characters
+                # read the pli back to know how to name the per-node timeseries
+                feats=dio.read_pli(os.path.join(run_base_dir,
+                                                "%s%s.pli"%(src_name,suffix)))
+                feat=feats[0] # just one polyline in the file
 
-            df.to_csv(bc_fp, sep=' ', index=False, header=False, columns=['unix_time', 'flow_cms'])
+                if len(feat)==3:
+                    node_names=feat[2]
+                else:
+                    node_names=[""]*len(feat[1])
+                    
+                for node_idx,node_name in enumerate(node_names):
+                    # if no node names are known, create the default name of <feature name>_0001
+                    if not node_name:
+                        node_name="%s%s_%04d"%(src_name,suffix,1+node_idx)
 
-    bc_fp.close()
-    if fresh_pli_fn is not None: # will write them all to a single file
-        dio.write_pli(fresh_pli_fn,pli_data)
-    else:
-        for feat in pli_data:
-            dio.write_pli( os.path.join(run_base_dir,feat[0]+".pli"),
-                           [feat] )
-
-    # Use the "new" format for FlowFM_bnd.ext, writing one file, with a stanza
-    # for each boundary condition, all referencing the same forcingfile, but
-    # with the features split out to individual pli files.
-    with open(new_bc_fn,'at') as fp:
-        for feat in pli_data:
-            # This is how things were written out for hyperpycnal:
-            # the same forcingfile can be specified multiple times, and it looks like
-            # they will pull out the stanza matching
-            # unclear from the manual whether multiple features can be included in a particular
-            # .pli file here.
-            # while the format
-            pli_fn=feat[0]+".pli"
-            fp.write("[boundary]\n")
-            fp.write("quantity=dischargebnd\n")
-            fp.write("locationfile=%s\n"%pli_fn)
-            fp.write("forcingfile=%s\n"%os.path.basename(fresh_bc_fn))
-            fp.write("return_time=0 # disable thatcher-harlemann\n")
-            fp.write("\n")
+                    tim_fn=os.path.join(run_base_dir,node_name+".tim")
+                    
+                    columns=['elapsed_minutes']
+                    if quantity=='dischargebnd':
+                        columns.append('flow_cms')
+                    elif quantity=='salinitybnd':
+                        columns.append('salinity')
+                    elif quantity=='temperaturebnd':
+                        columns.append('temperature')
+                    
+                    df.to_csv(tim_fn, sep=' ', index=False, header=False, columns=columns)
 
 ##
 
@@ -217,7 +224,7 @@ if 1: #  Freshwater flows from git submodule
 if 1:
     grid=dfm_grid.DFMGrid(net_file)
     
-    potws=xr.open_dataset(os.path.join(base_dir,'sfbay_potw','outputs','sfbay_potw.nc'))
+    potws=xr.open_dataset(os.path.join(base_dir,'sfbay_potw','outputs','sfbay_delta_potw.nc'))
     adjusted_features=dio.read_pli(adjusted_pli_fn)
 
     # select a time subset of the flow data, starting just before the
@@ -230,9 +237,9 @@ if 1:
         for site in potws.site.values:
             # NB: site is bytes at this point
             potw=potws.sel(site=site)
-            if six.PY3:
+            try:
                 site_s=site.decode()
-            else:
+            except AttributeError:
                 site_s=site
 
             if site_s in ['false_sac','false_sj']:
@@ -259,7 +266,7 @@ if 1:
                 feat=[site_s,
                       np.array([[potw.utm_x.values,potw.utm_y.values,-50.0]]),
                       ['']]
-                
+
                 for adj_feat in adjusted_features:
                     if adj_feat[0] == site_s:
                         # Merge them if the adjusted feature is more than 10 m away
@@ -299,15 +306,21 @@ if 1:
             with open(os.path.join(run_base_dir,'%s.tim'%site_s),'wt') as tim_fp:
                 for tidx in time_idxs:
                     tstamp_minutes = (potw.time[tidx]-ref_date) / np.timedelta64(1,'m')
+
+                    if ALL_FLOWS_UNIT:
+                        flow_cms=1.0
+                    else:
+                        flow_cms=potw.flow[tidx]
+                        
                     tim_fp.write("%g %g %g %g\n"%(tstamp_minutes,
-                                                  potw.flow[tidx],
+                                                  flow_cms,
                                                   0.0, # salinity
                                                   20.0)) # temperature...
 
 
 ##
 
-# Ocean and Delta boundary conditions
+# Delta boundary conditions
 # copied Silvia's pli files to inputs-static
 # even though there are 14 of these, one per node of the sea boundary,
 # they all appear to have the same data, even the tidal height time series.
@@ -367,42 +380,56 @@ if 1: # Fetch river USGS river flows, add to FlowFM_bnd.ext:
     if 1: # Write it all out
         for src_name,source in [ ('Jersey',jersey_raw),
                                  ('RioVista',rio_vista_raw)]:
-            # Add a stanze to FlowFMnew_bnd.ext:
-            with open(new_bc_fn,'at') as fp:
-                for quant in ['dischargebnd','temperaturebnd']:
-                    fp.write("\n".join(["\n[boundary]",
-                                        "quantity=%s"%quant,
-                                        "locationfile=%s.pli"%src_name,
-                                        "forcingfile=%s.bc"%src_name,
-                                        "return_time=0 # disable thatcher-harlemann",
-                                        ""]))
-
-            # Write the data:
+            src_feat=dio.read_pli(os.path.join(base_dir,'inputs-static','%s.pli'%src_name))[0]
+            
             df=source.to_dataframe().reset_index()
-            df['unix_time']=utils.to_unix(df.time.values)
-            df['flow_cms']=0.028316847 * df['stream_flow_mean_daily']
-            with open(os.path.join(run_base_dir,'%s.bc'%src_name),'wt') as bc_fp:
-                for quant,units,column in [ ('dischargebnd','m3 s-1','flow_cms'),
-                                            ('temperaturebnd','degC','temperature_water') ]:
-                    bc_fp.write("\n".join( [ "[forcing]",
-                                             # 'Name' needs to match the name in the pli
-                                             "Name               = %s_0001"%src_name,
-                                             "Function           = timeseries",
-                                             "Time-interpolation = linear",
-                                             "Quantity           = time",
-                                             "Unit               = seconds since 1970-01-01 00:00:00",
-                                             "Quantity           = %s"%quant,
-                                             "Unit               = %s"%units,  # was "m³/s\n", but prefer simpler characters
-                                             "\n"]))
+            df['elapsed_minutes']=(df.time.values - ref_date)/np.timedelta64(60,'s')
+            
+            if ALL_FLOWS_UNIT:
+                df['flow_cms']=np.ones_like(df.elapsed_minutes)
+            else:
+                df['flow_cms']=0.028316847 * np.ones_like(df.elapsed_minutes)
+                
+            df['salinity']   = 0*np.ones_like(df.elapsed_minutes)
+            df['temperature']=20*np.ones_like(df.elapsed_minutes)
+                
+            # Add stanzas to FlowFMold_bnd.ext:
+            for quant,suffix in [('dischargebnd','_flow'),
+                                 ('salinitybnd','_salt'),
+                                 ('temperaturebnd','_temp')]:
+                with open(old_bc_fn,'at') as fp:
+                    lines=["QUANTITY=%s"%quant,
+                           "FILENAME=%s%s.pli"%(src_name,suffix),
+                           "FILETYPE=9",
+                           "METHOD=3",
+                           "OPERAND=O",
+                           ""]
+                    fp.write("\n".join(lines))
+                    
+                feat_suffix=add_suffix_to_feature(src_feat,suffix)
+                dio.write_pli(os.path.join(run_base_dir,'%s%s.pli'%(src_name,suffix)),
+                              [feat_suffix])
 
-                    df.to_csv(bc_fp, sep=' ', index=False, header=False, columns=['unix_time', column])
+                # Write the data:
+                if quant=='dischargebnd':
+                    columns=['elapsed_minutes','flow_cms']
+                elif quant=='salinitybnd':
+                    columns=['elapsed_minutes','salinity']
+                elif quant=='temperaturebnd':
+                    columns=['elapsed_minutes','temperature']
+                    
+                if len(feat_suffix)==3:
+                    node_names=feat_suffix[2]
+                else:
+                    node_names=[""]*len(feat_suffix[1])
+                    
+                for node_idx,node_name in enumerate(node_names):
+                    # if no node names are known, create the default name of <feature name>_0001
+                    if not node_name:
+                        node_name="%s%s_%04d"%(src_name,suffix,1+node_idx)
 
-            # And copy the pli:
-            jersey_pli   =dio.read_pli(os.path.join(base_dir,'inputs-static','Jersey.pli'))
-            rio_vista_pli=dio.read_pli(os.path.join(base_dir,'inputs-static','RioVista.pli'))
-
-            dio.write_pli(os.path.join(run_base_dir,'Jersey.pli'  ), jersey_pli)
-            dio.write_pli(os.path.join(run_base_dir,'RioVista.pli'), rio_vista_pli)
+                    tim_fn=os.path.join(run_base_dir,node_name+".tim")
+                    df.to_csv(tim_fn, sep=' ', index=False, header=False, columns=columns)
 
 ## 
 
@@ -439,69 +466,86 @@ if 1: # Ocean BCs from Point Reyes
         fill_data(ptreyes.water_level)
         fill_data(ptreyes.water_temperature)
 
-        ptreyes['salinity']=33 + 0*ptreyes.water_temperature
+        print("-=-=-=- USING 35 PPT WHILE TESTING! -=-=-=-")
+        ptreyes['salinity']=35 + 0*ptreyes.water_temperature
 
     if 1: # Write it all out
-        # Add a stanze to FlowFMnew_bnd.ext:
+        # Add a stanza to FlowFMold_bnd.ext:
         src_name='Sea'
         source=ptreyes
-        forcing_data=[('waterlevelbnd','m','water_level'),
-                      ('salinitybnd','ppt','salinity'),
-                      ('temperaturebnd','degC','water_temperature')]
-        
-        with open(new_bc_fn,'at') as fp:
-            for quant,_,_ in forcing_data:
-                fp.write("\n".join(["\n[boundary]",
-                                    "quantity=%s"%quant,
-                                    "locationfile=%s.pli"%src_name,
-                                    "forcingfile=%s.bc"%src_name,
-                                    "return_time=0 # disable thatcher-harlemann",
-                                    ""]))
-
-        # Write the data:
         df=source.to_dataframe().reset_index()
-        df['unix_time']=utils.to_unix(df.time.values)
+        df['elapsed_minutes']=(df.time.values - ref_date)/np.timedelta64(60,'s')
+        
+        forcing_data=[('waterlevelbnd','water_level','_ssh'),
+                      ('salinitybnd','salinity','_salt'),
+                      ('temperaturebnd','water_temperature','_temp')]
 
-        with open(os.path.join(run_base_dir,'%s.bc'%src_name),'wt') as bc_fp:
-            for quant,units,column in forcing_data:
-                txt="\n".join(["[forcing]",
-                               # 'Name' needs to match the name in the pli
-                               "Name               = %s_0001"%src_name,
-                               "Function           = timeseries",
-                               "Time-interpolation = linear",
-                               "Quantity           = time",
-                               "Unit               = seconds since 1970-01-01 00:00:00",
-                               "Quantity           = %s"%quant,
-                               "Unit               = %s"%units,  # was "m³/s\n", but prefer simpler characters
-                               ""])
-                bc_fp.write(txt)
-                df.to_csv(bc_fp, sep=' ', index=False, header=False,
-                          columns=['unix_time', column])
-                bc_fp.write("\n")
+        src_feat=dio.read_pli(os.path.join(base_dir,'inputs-static','%s.pli'%src_name))[0]
 
-        # And copy the pli:
-        sea_pli   =dio.read_pli(os.path.join(base_dir,'inputs-static','Sea.pli'))
+        for quant,column,suffix in forcing_data:
+            with open(old_bc_fn,'at') as fp:
+                lines=["QUANTITY=%s"%quant,
+                       "FILENAME=%s%s.pli"%(src_name,suffix),
+                       "FILETYPE=9",
+                       "METHOD=3",
+                       "OPERAND=O",
+                       ""]
+                fp.write("\n".join(lines))
 
-        dio.write_pli(os.path.join(run_base_dir,'Sea.pli'), sea_pli)
+            feat_suffix=add_suffix_to_feature(src_feat,suffix)
+            dio.write_pli(os.path.join(run_base_dir,'%s%s.pli'%(src_name,suffix)),
+                          [feat_suffix])
+
+            # Write the data:
+            columns=['elapsed_minutes',column]
+
+            if len(feat_suffix)==3:
+                node_names=feat_suffix[2]
+            else:
+                node_names=[""]*len(feat_suffix[1])
+
+            for node_idx,node_name in enumerate(node_names):
+                # if no node names are known, create the default name of <feature name>_0001
+                if not node_name:
+                    node_name="%s%s_%04d"%(src_name,suffix,1+node_idx)
+
+                tim_fn=os.path.join(run_base_dir,node_name+".tim")
+                df.to_csv(tim_fn, sep=' ', index=False, header=False, columns=columns)
 
 ##
 
 # Spatial salinity initial condition and friction
 if 1:
-    txt="\n".join([ "QUANTITY=initialsalinity",
-                    "FILENAME=%s/saltopini.xyz"%static_dir,
-                    "FILETYPE=7",
-                    "METHOD=5",
-                    "OPERAND=O",
-                    "",
-                    "QUANTITY=frictioncoefficient",
-                    "FILENAME=%s/friction12e.xyz"%static_dir,
-                    "FILETYPE=7",
-                    "METHOD=5",
-                    "OPERAND=O",
-                    ""])
+    lines=[]
+    if 0: # real initial condition:
+        lines+=[ "QUANTITY=initialsalinity",
+                 "FILENAME=%s/saltopini.xyz"%static_dir,
+                 "FILETYPE=7",
+                 "METHOD=5",
+                 "OPERAND=O",
+                 ""]
+    else: #  constant 35 ppt initial condition:
+        print("-=-=-=- USING 35 PPT WHILE TESTING! -=-=-=-")
+        lines+=[ "QUANTITY=initialsalinity",
+                 "FILENAME=constant_35ppt.xyz",
+                 "FILETYPE=7",
+                 "METHOD=5",
+                 "OPERAND=O",
+                 ""]
+        orig_salt=np.loadtxt('inputs-static/saltopini.xyz')
+        orig_salt[:,2]=35
+        np.savetxt(os.path.join(run_base_dir,'constant_35ppt.xyz'),
+                   orig_salt,
+                   delimiter=' ')
+        
+    lines+=["QUANTITY=frictioncoefficient",
+            "FILENAME=%s/friction12e.xyz"%static_dir,
+            "FILETYPE=7",
+            "METHOD=5",
+            "OPERAND=O",
+            ""]
     with open(old_bc_fn,'at') as fp:
-        fp.write(txt)
+        fp.write("\n".join(lines))
 
 ## --------------------------------------------------------------------------------
 # Edits to the template mdu:
@@ -528,14 +572,10 @@ if 1: # set dates
 if 1: # update location of the boundary conditions
     # this has the source/sinks which cannot be written in the new style file
     mdu['external forcing','ExtForceFile']=os.path.basename(old_bc_fn)
-    # this has boundary flows
-    mdu['external forcing','ExtForceFileNew']=os.path.basename(new_bc_fn)
 
 if 0: #
     # Would be adding evaporation as negative rain here.
     pass
-
-
 
 if 1: # output locations
     mdu['output','CrsFile'] = os.path.join(static_dir,"SB-observationcrosssection.pli")
@@ -553,6 +593,9 @@ if 1:
             xy=np.array(row['geom'])
             fp.write("%12g %12g '%s'\n"%(xy[0], xy[1], row['name']))
     mdu['output','ObsFile'] = obs_fn
+
+    if run_name.startswith('short'):
+        mdu['output','MapInterval'] = 3600
     
 ## 
 mdu.write(os.path.join(run_base_dir,run_name+".mdu"))
