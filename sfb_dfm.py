@@ -219,7 +219,7 @@ if 1: #  Freshwater flows from git submodule
 
 # POTW inputs:
 # The new-style boundary inputs file (FlowFM_bnd_new.ext) cannot represent
-# sources and sinks, so these come in via a separate, old-style file.
+# sources and sinks, so these come in via the old-style file.
 
 if 1:
     grid=dfm_grid.DFMGrid(net_file)
@@ -245,6 +245,14 @@ if 1:
             if site_s in ['false_sac','false_sj']:
                 print("(skip %s) "%site_s,end="")
                 continue
+
+            if potw.utm_x.values.mean() > 610200:
+                # Delta POTWs are in this file, too, but not in this
+                # grid.  Luckily they are easy to identify based on
+                # x coordinate.
+                print("(skip %s -- too far east) "%site_s,end="")
+                continue
+            
             print("%s "%site_s,end="")
 
             fp.write( ("QUANTITY=discharge_salinity_temperature_sorsin\n"
