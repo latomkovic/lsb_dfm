@@ -33,7 +33,8 @@ for proc in procs:
     salt0=all_ds[proc].sa1.isel(time=0,laydim=9).values
     saltN=all_ds[proc].sa1.isel(time=4,laydim=9).values
     dsalt=saltN-salt0
-    coll=all_g[proc].plot_cells(ax=ax,lw=0.5,values=dsalt)
+    mask=np.abs(dsalt)>0.001
+    coll=all_g[proc].plot_cells(ax=ax,lw=0.5,values=dsalt,mask=mask)
     coll.set_clim([-.1,0])
     all_coll.append(coll)
     # show domain boundaries:
@@ -43,7 +44,6 @@ for proc in procs:
 plt.setp(all_coll,edgecolor='face')
 plt.colorbar(all_coll[0])
 
-## 
 import glob
 for pli_fn in glob.glob(os.path.join(run_base_dir,'*.pli')):
     if '_salt' in pli_fn or '_temp' in pli_fn: continue
@@ -103,6 +103,23 @@ for proc in procs:
 
 plt.setp(all_coll,edgecolor='face',clim=[-2,2])
 plt.colorbar(all_coll[0])
+
+##
+# Show cells responsible for timestep limitation
+plt.figure(5).clf()
+fig,ax=plt.subplots(num=5)
+
+# Plot numlimtdt for all grids:
+all_coll=[]
+for proc in procs:
+    coll=all_g[proc].plot_cells(ax=ax,lw=0.5,
+                                values=all_ds[proc].numlimdt.isel(time=-1))
+    # coll.set_clim([-.1,0])
+    all_coll.append(coll)
+
+plt.setp(all_coll,edgecolor='face',clim=[0,200])
+plt.colorbar(all_coll[0])
+
 ##
 
 plt.figure(3).clf()
@@ -120,8 +137,12 @@ plt.colorbar(all_coll[0])
 
 ##
 
+from stompy.spatial import field
+lsb_dem=field.GdalGrid("/opt/data/bathy_interp/master2017/tiles_2m_20170615/merged_2m.tif")
+
+## 
 plt.figure(4).clf()
-fig,ax=plt.subplots(num=4)
+fig,(ax,ax_dem)=plt.subplots(1,2,num=4,sharex=True,sharey=True)
 
 # proc 22, which has Alviso Slough
 proc=22
@@ -131,10 +152,13 @@ node_depth=all_ds[proc].NetNode_z.values
 ccoll=all_g[proc].plot_cells(ax=ax,lw=0.5,values=cell_depth,cmap='jet',zorder=0)
 ncoll=all_g[proc].plot_nodes(ax=ax,values=node_depth,cmap='jet',zorder=2,lw=1)
 #ncoll.set_markeredgecolor('k')
-plt.setp([ccoll,ncoll],edgecolor='face',clim=[-2,2]) 
-from stompy.plot import plot_utils 
-plot_utils.cbar(ccoll,extras=[ncoll])
+plt.setp([ccoll,ncoll],edgecolor='face',clim=[-2,2])
 
+img=lsb_dem.crop(all_g[proc].bounds()).plot(ax=ax_dem,vmin=-2,vmax=2,cmap='jet')
+
+from stompy.plot import plot_utils
+cax=fig.add_axes([0.9,0.1,0.02,0.5])
+plot_utils.cbar(ccoll,extras=[ncoll,img],cax=cax)
 
 ##
 

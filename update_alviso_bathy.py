@@ -7,8 +7,9 @@ from stompy.model.delft import dfm_grid
 from stompy.plot import plot_utils
 
 ## 
-ds=xr.open_dataset('runs/short_20120801_p24/sfei_v18_0022_net.nc')
-g=unstructured_grid.UnstructuredGrid.from_ugrid(ds)
+ds=xr.open_dataset('sfei_v18_net.nc')
+# g=unstructured_grid.UnstructuredGrid.from_ugrid(ds)
+g=dfm_grid.DFMGrid(ds)
 
 ##
 
@@ -35,5 +36,5 @@ for xxyy in [rect_1,rect_2]:
 
 ##
 
-ds.to_netcdf('runs/short_20120801_p24/dredged-sfei_v18_0022_net.nc',
+ds.to_netcdf('dredged-sfei_v18_net.nc',
              format='NETCDF3_CLASSIC')
