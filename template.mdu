@@ -26,7 +26,7 @@ ManholeFile       =                     # File *.ini containing manholes
 WaterLevIni       = 1.387               # Initial water level at missing s0 values
 Bedlevuni         = -5                  # Uniform bed level used at missing z values if BedlevType > 2
 Bedslope          = 0                   # Bed slope inclination if BedlevType > 2
-BedlevType        = 3                   # Bathymetry specification
+BedlevType        = 4                   # Bathymetry specification
                                            # 1: at cell centers (from BathymetryFile)
                                            # 2: at faces (from BathymetryFile)
                                            # 3: at nodes, face levels mean of node values
@@ -44,7 +44,7 @@ Sillheightmin     = 0.5                 # Weir treatment only if both sills larg
 Makeorthocenters  = 0                   # Switch from circumcentres to orthocentres in geominit (1: yes, 0: no)
 Dcenterinside     = 1                   # Limit cell center (1.0: in cell, 0.0: on c/g)
 Bamin             = 1E-06               # Minimum grid cell area, in combination with cut cells
-OpenBoundaryTolerance= 3                   # Search tolerance factor between boundary polyline and grid cells, in cell size units
+OpenBoundaryTolerance= 3                # Search tolerance factor between boundary polyline and grid cells, in cell size units
 RenumberFlowNodes = 1                   # Renumber the flow nodes (1: yes, 0: no)
 Kmx               = 10                  # Maximum number of vertical layers
 Layertype         = 1                   # Vertical layer type (1: all sigma, 2: all z, 3: use VertplizFile)

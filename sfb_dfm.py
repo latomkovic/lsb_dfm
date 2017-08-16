@@ -2,8 +2,9 @@
 """
 Script to configure and generate mdu ready for running dflow fm.
 
-Uses sfei_v18 grid, a Southbay-enhancement of the SF Bay/Delta community
-model grid.
+Uses sfei_v19 grid, a Southbay-enhancement of the SF Bay/Delta community
+model grid, with some areas deepened (LSB bathy), trimmed (Coyote Creek)
+and dredge (see dredge_grid.py in this directory)
 """
 import os
 import pdb
@@ -20,26 +21,30 @@ from stompy.model.delft import dfm_grid
 from stompy.spatial import wkb2shp
 from stompy.io.local import usgs_nwis,noaa_coops
 
+if __name__=='__main__':
+    logging.basicConfig(level=logging.INFO)
+
 log=logging.getLogger('sfb_dfm')
-log.setLevel(logging.INFO)
+
+import dredge_grid
 
 DAY=np.timedelta64(86400,'s') # useful for adjusting times
 
 ## --------------------------------------------------
 
 # Parameters to control more specific aspects of the run
-if 1: # nice short setup for testing:
-    run_name="short_20120801_p24" 
+if 0: # nice short setup for testing:
+    run_name="short_20120801_p16" 
     run_start=np.datetime64('2012-08-01')
-    run_stop=np.datetime64('2012-08-10')
-if 0: # wy2013 with spinup
+    run_stop=np.datetime64('2012-08-02')
+if 1: # wy2013 with spinup
     run_name="wy2013" 
     run_start=np.datetime64('2012-08-01')
     run_stop=np.datetime64('2013-10-01')
 
 
 # debugging - set all volumetric flow rates to 1m3/s.
-ALL_FLOWS_UNIT=True
+ALL_FLOWS_UNIT=False
 
 ## --------------------------------------------------
 
@@ -58,12 +63,14 @@ static_dir=os.path.relpath(os.path.join(base_dir,'inputs-static'),
 # truncate to day precision (rounds down)
 ref_date=run_start.astype('datetime64[D]')
 
-net_file = os.path.join(base_dir,'sfei_v18_net.nc')
+net_file = os.path.join(base_dir,'sfei_v19_net.nc')
 
 # No longer using any new-style boundary conditions
 old_bc_fn = os.path.join(run_base_dir,'FlowFMold_bnd.ext')
 
 obs_shp_fn = os.path.join(base_dir,'inputs-static','observation-points.shp')
+
+dredge_depth=-0.5 # m NAVD88, depth to enforce at inflows and discharges
 
 ##
 
@@ -87,6 +94,13 @@ for fn in [old_bc_fn]:
     os.path.exists(fn) and os.unlink(fn)
 
 ##
+
+# Load the grid now -- it's used for clarifying some inputs, but
+# is also modified to deepen areas near inflows, before being written
+# out near the end of the script
+grid=dfm_grid.DFMGrid(net_file)
+    
+## 
 
 if 1:
     if 1:# fetch wind data, write to format supported by DFM
@@ -150,7 +164,8 @@ if 1: #  Freshwater flows from git submodule
 
         # At least through the GUI, pli files must have more than one node.
         # Don't get too big for our britches, just stick a second node 50m east
-        # if the incoming data is a point
+        # if the incoming data is a point, but check for manually set locations
+        # in adjusted_features
         if 1: #-- Write a PLI file
             feat=(src_name,
                   np.array( [[stn_ds.utm_x,stn_ds.utm_y],
@@ -166,6 +181,8 @@ if 1: #  Freshwater flows from git submodule
                 feat_suffix=add_suffix_to_feature(feat,suffix)
                 pli_fn=os.path.join(run_base_dir,"%s%s.pli"%(src_name,suffix))
                 dio.write_pli(pli_fn,[feat_suffix])
+
+            dredge_grid.dredge_boundary(grid,feat[1],dredge_depth)
 
         if 1: #-- Write the time series and stanza in FlowFM_bnd.ext
             df=stn_ds.to_dataframe().reset_index()
@@ -222,8 +239,6 @@ if 1: #  Freshwater flows from git submodule
 # sources and sinks, so these come in via the old-style file.
 
 if 1:
-    grid=dfm_grid.DFMGrid(net_file)
-    
     potws=xr.open_dataset(os.path.join(base_dir,'sfbay_potw','outputs','sfbay_delta_potw.nc'))
     adjusted_features=dio.read_pli(adjusted_pli_fn)
 
@@ -310,6 +325,8 @@ if 1:
                         break
 
                 dio.write_pli(pli_fp,[feat])
+
+                dredge_grid.dredge_discharge(grid,feat[1],dredge_depth)
 
             with open(os.path.join(run_base_dir,'%s.tim'%site_s),'wt') as tim_fp:
                 for tidx in time_idxs:
@@ -400,7 +417,9 @@ if 1: # Fetch river USGS river flows, add to FlowFM_bnd.ext:
                 
             df['salinity']   = 0*np.ones_like(df.elapsed_minutes)
             df['temperature']=20*np.ones_like(df.elapsed_minutes)
-                
+
+            dredge_grid.dredge_boundary(grid,src_feat[1],dredge_depth)
+            
             # Add stanzas to FlowFMold_bnd.ext:
             for quant,suffix in [('dischargebnd','_flow'),
                                  ('salinitybnd','_salt'),
@@ -525,7 +544,7 @@ if 1: # Ocean BCs from Point Reyes
 # Spatial salinity initial condition and friction
 if 1:
     lines=[]
-    if 0: # real initial condition:
+    if not ALL_FLOWS_UNIT: # real initial condition:
         lines+=[ "QUANTITY=initialsalinity",
                  "FILENAME=%s/saltopini.xyz"%static_dir,
                  "FILETYPE=7",
@@ -564,8 +583,12 @@ mdu=dio.MDUFile('template.mdu')
 mdu['geometry','LandBoundaryFile'] = os.path.join(static_dir,"deltabay.ldb")
 
 if 1:  # Copy grid file into run directory and update mdu
-    shutil.copyfile(net_file, os.path.join(run_base_dir, net_file))
     mdu['geometry','NetFile'] = os.path.basename(net_file)
+    dest=os.path.join(run_base_dir, net_file)
+    if 0: # back when this script made no changes to the grid:
+        shutil.copyfile(net_file, dest)
+    else: # write out the modified grid
+        dfm_grid.write_dfm(grid,dest,overwrite=True)
 
 if 1: # fixed weir file is just referenced as static input
     mdu['geometry','FixedWeirFile'] = os.path.join(static_dir,'SBlevees_tdk.pli')

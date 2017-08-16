@@ -10,11 +10,12 @@ import numpy as np
 from stompy.grid import unstructured_grid
 from stompy.model.delft import dfm_grid
 
-## 
+##
+run_name="short_20120801_p24"
+run_base_dir="runs/" +run_name
+output_dir=os.path.join(run_base_dir,"DFM_OUTPUT_%s"%run_name)
 
-output_dir="runs/short_20120801_p24/DFM_OUTPUT_short_20120801_p24"
-
-Nproc=24
+Nproc=16
 procs=range(Nproc)
 
 all_ds=[xr.open_dataset(os.path.join(output_dir,'short_20120801_p24_%04d_20120801_000000_map.nc'%proc))
@@ -22,27 +23,55 @@ all_ds=[xr.open_dataset(os.path.join(output_dir,'short_20120801_p24_%04d_2012080
 
 all_g=[unstructured_grid.UnstructuredGrid.from_ugrid(ds)
        for ds in all_ds]
-##
-plt.figure(1).clf()
-fig,ax=plt.subplots(num=1)
 
-# Plot lowest layer salinity for all grids:
-all_coll=[]
+# Global grid so we can pull out clusters of mass
+G=dfm_grid.DFMGrid('sfei_v19_net.nc')
+
+##
+
+# Walk through the subdomains, figure out which cell in G each
+# subdomain cell belongs to.  Could be faster, but as is takes
+# about 30s.
+global_elems=np.zeros(g.Ncells(),'int32')-1
+
+for proc in procs:
+    print(proc)
+    g=all_g[proc]
+    centers=g.cells_centroid()
+    for c in range(g.Ncells()):
+        Gcell=G.select_cells_nearest( centers[c],inside=True )
+        assert Gcell>=0
+        global_elems[Gcell]=all_ds[proc].FlowElemGlobalNr.values[c]
+G.add_cell_field('global_elem',global_elems)
+# and establish the mapping from global element to cell index in G
+# fill with invalid first
+global_to_G=np.zeros(G.cells['global_elem'].max()+1,'int32') + 10*g.Ncells()
+# then update valid
+global_to_G[global_elems]=np.arange(G.Ncells())
+##
+
+fresh=np.zeros(G.Ncells(),'float64')
+
 for proc in procs:
     # steps 3 and 4 should be clear of the 3h ramp up.
     salt0=all_ds[proc].sa1.isel(time=0,laydim=9).values
     saltN=all_ds[proc].sa1.isel(time=4,laydim=9).values
     dsalt=saltN-salt0
-    mask=np.abs(dsalt)>0.001
-    coll=all_g[proc].plot_cells(ax=ax,lw=0.5,values=dsalt,mask=mask)
-    coll.set_clim([-.1,0])
-    all_coll.append(coll)
-    # show domain boundaries:
-    e2c=all_g[proc].edge_to_cells()
-    all_g[proc].plot_edges(ax=ax,lw=1.0,color='k',mask=e2c.min(axis=1)<0)
+    fresh[global_to_G[all_ds[proc].FlowElemGlobalNr.values]]=dsalt
 
-plt.setp(all_coll,edgecolor='face')
-plt.colorbar(all_coll[0])
+## 
+plt.figure(1).clf()
+fig,ax=plt.subplots(num=1)
+
+mask=np.abs(fresh)>0.001
+coll=G.plot_cells(ax=ax,lw=0.5,values=fresh,mask=mask)
+coll.set_clim([-.1,0])
+
+e2c=G.edge_to_cells()
+G.plot_edges(ax=ax,lw=1.0,color='k',mask=e2c.min(axis=1)<0)
+
+plt.setp(coll,edgecolor='face')
+plt.colorbar(coll)
 
 import glob
 for pli_fn in glob.glob(os.path.join(run_base_dir,'*.pli')):
@@ -54,14 +83,46 @@ for pli_fn in glob.glob(os.path.join(run_base_dir,'*.pli')):
 
 ##
 
+times=[3,4] # 3600s per step
+
+dfresh_vols=np.zeros(G.Ncells(),'float64')
+
+for proc in procs:
+    salt=all_ds[proc].sa1.isel(time=times).mean(dim='laydim').values
+    fresh=(35-salt)/35.
+    areas=all_g[proc].cells_area()
+    depths=all_ds[proc].waterdepth.isel(time=times).values
+
+    fresh_vol=(fresh*areas*depths)
+    dfresh_vol=fresh_vol[1] - fresh_vol[0]
+    dfresh_vols[global_to_G[all_ds[proc].FlowElemGlobalNr.values]]=dfresh_vol
+
+##
+
+# now we have the per-2d-element, per-hour, accumulation of freshwater.
+
+
+## 
+
 # select a region based on the current axes:
 zoom=ax.axis()
 
 # iterate through grids:
 time_idx=3 # 3600s per step
 totalQ=0
+global_idxs=set()
 for proc in procs:
-    cells=np.nonzero( all_g[proc].cell_clip_mask(zoom) )[0]
+    all_cells_this_proc=np.nonzero( all_g[proc].cell_clip_mask(zoom) )[0]
+
+    if len(all_cells_this_proc)==0:
+        continue
+    
+    proc_global_idxs=all_ds[proc].FlowElemGlobalNr[all_cells_this_proc].values
+    cells=[c
+           for c,g in zip(all_cells_this_proc,proc_global_idxs)
+           if g not in global_idxs]
+    global_idxs.update( set(all_ds[proc].FlowElemGlobalNr[cells].values) )
+    
     if len(cells)==0:
         continue
 
