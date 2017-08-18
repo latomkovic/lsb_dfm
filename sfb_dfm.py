@@ -614,11 +614,11 @@ if 0: #
 if 1: # output locations
     mdu['output','CrsFile'] = os.path.join(static_dir,"SB-observationcrosssection.pli")
 
-    # Observation points taken from shapefile for easier editing/comparisons in GIS
-    
-    # mdu['output','ObsFile'] = os.path.join(static_dir,"Southbay-withoutDelta_obs.xyn")
 ##
-if 1:    
+if 1:
+    # Observation points taken from shapefile for easier editing/comparisons in GIS
+    # OLD mdu['output','ObsFile'] = os.path.join(static_dir,"Southbay-withoutDelta_obs.xyn")
+    
     obs_pnts=wkb2shp.shp2geom(obs_shp_fn)
     obs_fn='observation_pnts.xyn'
     
