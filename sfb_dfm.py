@@ -493,9 +493,12 @@ if 1: # Ocean BCs from Point Reyes
         fill_data(ptreyes.water_level)
         fill_data(ptreyes.water_temperature)
 
-        print("-=-=-=- USING 35 PPT WHILE TESTING! -=-=-=-")
-        ptreyes['salinity']=35 + 0*ptreyes.water_temperature
-
+        if ALL_FLOWS_UNIT:
+            print("-=-=-=- USING 35 PPT WHILE TESTING! -=-=-=-")
+            ptreyes['salinity']=35 + 0*ptreyes.water_temperature
+        else:
+            ptreyes['salinity']=33 + 0*ptreyes.water_temperature
+            
     if 1: # Write it all out
         # Add a stanza to FlowFMold_bnd.ext:
         src_name='Sea'

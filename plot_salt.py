@@ -51,7 +51,7 @@ global_to_G[global_elems]=np.arange(G.Ncells())
 
 ##
 
-time=50
+time=1
 
 salt=np.zeros(G.Ncells(),'f8')
 
