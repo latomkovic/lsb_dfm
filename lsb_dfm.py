@@ -35,9 +35,9 @@ DAY=np.timedelta64(86400,'s') # useful for adjusting times
 
 # Parameters to control more specific aspects of the run
 if 1: # nice short setup for testing:
-    run_name="short20160601_p1" 
+    run_name="short_10d_p16" 
     run_start=np.datetime64('2016-06-01')
-    run_stop=run_start+4*DAY
+    run_stop=run_start+10*DAY
 if 0: # wy2013 with spinup
     run_name="wy2013" 
     run_start=np.datetime64('2012-08-01')
@@ -201,7 +201,9 @@ mdu=dio.MDUFile('template.mdu')
 mdu['geometry','LandBoundaryFile'] = os.path.join(rel_static_dir,"deltabay.ldb")
 
 # Start with 2D:
-mdu['geometry','Kmx']=1
+# mdu['geometry','Kmx']=1
+# On to 3D, for better or worse
+mdu['geometry','Kmx']=10
 
 if 1:  # Copy grid file into run directory and update mdu
     mdu['geometry','NetFile'] = os.path.basename(net_file)
