@@ -35,7 +35,7 @@ DAY=np.timedelta64(86400,'s') # useful for adjusting times
 
 # Parameters to control more specific aspects of the run
 if 1: # nice short setup for testing:
-    run_name="short_10d_p16" 
+    run_name="short_10d_20170925_p16" 
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+10*DAY
 if 0: # wy2013 with spinup
@@ -173,7 +173,8 @@ sfb_dfm_utils.add_ocean(run_base_dir,
                         static_dir=abs_static_dir,
                         grid=grid,
                         old_bc_fn=old_bc_fn,
-                        all_flows_unit=ALL_FLOWS_UNIT)
+                        all_flows_unit=ALL_FLOWS_UNIT,
+                        factor=0.901)
 
 ##
 
@@ -212,7 +213,9 @@ if 1:  # Copy grid file into run directory and update mdu
     dfm_grid.write_dfm(grid,dest,overwrite=True)
 
 if 1: # fixed weir file is just referenced as static input
-    mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'FlowFM_fxw.pli')
+    # mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'FlowFM_fxw.pli')
+    # updated with some features inside A5/7/8
+    mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'fixed_weirs-v01.pli')    
 
 if 1: # set dates
     # RefDate can only be specified to day precision
