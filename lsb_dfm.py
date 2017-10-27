@@ -34,7 +34,7 @@ DAY=np.timedelta64(86400,'s') # useful for adjusting times
 ## --------------------------------------------------
 
 # Parameters to control more specific aspects of the run
-if 1: # nice short setup for testing:
+if 0: # nice short setup for testing:
     run_name="short_10d_20170925_p16" 
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+10*DAY
@@ -42,6 +42,13 @@ if 0: # wy2013 with spinup
     run_name="wy2013" 
     run_start=np.datetime64('2012-08-01')
     run_stop=np.datetime64('2013-10-01')
+if 1: # short setup for testing a winter run:
+    # was missing some breaks in the levees
+    # run_name="short_winter2016_00" 
+    run_name="short_winter2016_01" 
+    run_start=np.datetime64('2016-01-01')
+    run_stop=run_start+10*DAY
+    
 
 
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
@@ -215,7 +222,11 @@ if 1:  # Copy grid file into run directory and update mdu
 if 1: # fixed weir file is just referenced as static input
     # mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'FlowFM_fxw.pli')
     # updated with some features inside A5/7/8
-    mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'fixed_weirs-v01.pli')    
+    # since the code for this is now part of this repo, this isn't really static, so
+    # copy it in.
+    shutil.copyfile( os.path.join(base_dir,'fixed_weirs','fixed_weirs-v02.pli'),
+                     os.path.join(run_base_dir,'fixed_weirs-v02.pli') )
+    mdu['geometry','FixedWeirFile'] = 'fixed_weirs-v02.pli'
 
 if 1: # set dates
     # RefDate can only be specified to day precision

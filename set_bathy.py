@@ -35,7 +35,7 @@ log=logging.getLogger('set_bathy')
 
 ##
 
-merged_2m_path='/opt/data/bathy_interp/master2017/tiles_2m_20170615/merged_2m.tif'
+merged_2m_path='/opt/data/bathy_interp/master2017/tiles_2m_20171024/merged_2m.tif'
 
 
 
