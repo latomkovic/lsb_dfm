@@ -42,12 +42,16 @@ if 0: # wy2013 with spinup
     run_name="wy2013" 
     run_start=np.datetime64('2012-08-01')
     run_stop=np.datetime64('2013-10-01')
-if 1: # short setup for testing a winter run:
+if 0: # short setup for testing a winter run:
     # was missing some breaks in the levees
     # run_name="short_winter2016_00" 
     run_name="short_winter2016_01" 
-    run_start=np.datetime64('2016-01-01')
+    run_start=np.datetime64('2015-01-01')
     run_stop=run_start+10*DAY
+if 1: # medium winter run:
+    run_name="medium_winter2016_00" 
+    run_start=np.datetime64('2015-12-15')
+    run_stop=run_start+75*DAY
     
 
 
@@ -261,6 +265,12 @@ if 1:
         mdu['output','MapInterval'] = 1800
         mdu['output','HisInterval'] = 900
 
+    if run_name.startswith('medium'):
+        mdu['output','MapInterval'] = 3600
+        mdu['output','HisInterval'] = 900
+        
 ## 
 mdu.write(os.path.join(run_base_dir,run_name+".mdu"))
 
+# 10 days at 0.5h => 42G
+# 75 days at 1h => 150G
