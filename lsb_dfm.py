@@ -49,7 +49,10 @@ if 0: # short setup for testing a winter run:
     run_start=np.datetime64('2015-01-01')
     run_stop=run_start+10*DAY
 if 1: # medium winter run:
-    run_name="medium_winter2016_00" 
+    # run_name="medium_winter2016_00"
+    # That had a bad lag from error in ocean.py
+    # Also amplified throughout the bay.
+    run_name="medium_winter2016_01" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+75*DAY
     
