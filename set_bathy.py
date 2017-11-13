@@ -35,8 +35,10 @@ log=logging.getLogger('set_bathy')
 
 ##
 
-merged_2m_path='/opt/data/bathy_interp/master2017/tiles_2m_20171024/merged_2m.tif'
+merged_2m_path='inputs-static/merged_2m.tif'
 
+if not os.path.exists(merged_2m_path):
+    raise Exception("Copy or symlink merged_2m.tif to %s"%merged_2m_path)
 
 
 def set_lsb_bathy(grid):

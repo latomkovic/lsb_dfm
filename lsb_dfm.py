@@ -48,14 +48,17 @@ if 0: # short setup for testing a winter run:
     run_name="short_winter2016_01" 
     run_start=np.datetime64('2015-01-01')
     run_stop=run_start+10*DAY
-if 1: # medium winter run:
+if 0: # medium winter run:
     # run_name="medium_winter2016_00"
     # That had a bad lag from error in ocean.py
     # Also amplified throughout the bay.
     run_name="medium_winter2016_01" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+75*DAY
-    
+if 1: # short winter run, testing gates:
+    run_name="short_winter2016_02" 
+    run_start=np.datetime64('2015-12-15')
+    run_stop=run_start+10*DAY
 
 
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
@@ -226,15 +229,24 @@ if 1:  # Copy grid file into run directory and update mdu
     # write out the modified grid
     dfm_grid.write_dfm(grid,dest,overwrite=True)
 
+fixed_weir_out=os.path.join(base_dir,'fixed_weirs','out')
 if 1: # fixed weir file is just referenced as static input
     # mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'FlowFM_fxw.pli')
     # updated with some features inside A5/7/8
     # since the code for this is now part of this repo, this isn't really static, so
     # copy it in.
-    shutil.copyfile( os.path.join(base_dir,'fixed_weirs','fixed_weirs-v02.pli'),
+    shutil.copyfile( os.path.join(fixed_weir_out,'fixed_weirs-v02.pli'),
                      os.path.join(run_base_dir,'fixed_weirs-v02.pli') )
     mdu['geometry','FixedWeirFile'] = 'fixed_weirs-v02.pli'
 
+if 1: # add in gates, also derived in fixed_weirs
+    # append gate-specific inputs to the old-style inp file
+    with open(old_bc_fn,'at') as fp:
+        with open(os.path.join(fixed_weir_out,'gates-v04.inp'),'rt') as fp_in:
+            fp.write(fp_in.read())
+    for f in glob.glob( os.path.join(fixed_weir_out,'gate-*.pli') ):
+        shutil.copyfile( f, os.path.join(run_base_dir, os.path.basename(f) ) )
+    
 if 1: # set dates
     # RefDate can only be specified to day precision
     mdu['time','RefDate'] = utils.to_datetime(ref_date).strftime('%Y%m%d')
