@@ -7,6 +7,7 @@ model grid, with some areas deepened (LSB bathy), trimmed (Coyote Creek)
 and dredge (see dredge_grid.py in this directory)
 """
 import os
+import glob
 import pdb
 import io
 import shutil
