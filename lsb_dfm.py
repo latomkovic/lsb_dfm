@@ -241,10 +241,10 @@ if 1: # fixed weir file is just referenced as static input
     mdu['geometry','FixedWeirFile'] = 'fixed_weirs-v02.pli'
 
 if 1: # add in gates, also derived in fixed_weirs
-    # append gate-specific inputs to the old-style inp file
-    with open(old_bc_fn,'at') as fp:
-        with open(os.path.join(fixed_weir_out,'gates-v04.inp'),'rt') as fp_in:
-            fp.write(fp_in.read())
+    # gate-specific inputs to the old-style inp file
+    mdu['geometry','StructureFile'] = 'gates-v04.ini'
+    shutil.copyfile( os.path.join(fixed_weir_out,'gates-v04.ini'),
+                     os.path.join(run_base_dir,'gates-v04.ini') )
     for f in glob.glob( os.path.join(fixed_weir_out,'gate-*.pli') ):
         shutil.copyfile( f, os.path.join(run_base_dir, os.path.basename(f) ) )
     

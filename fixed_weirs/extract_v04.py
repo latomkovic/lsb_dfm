@@ -167,8 +167,8 @@ idxs=np.nonzero(sel)[0]
 # 6 known gates:
 # a5_guad, a7_alviso, a9_alviso, a14_coyote, a8_alviso, a3w_guad
 # For starters, all of these get the same, constant in time opening
-
-with open(os.path.join(out_dir,'gates-v04.inp'),'wt') as fp:
+# the resulting ini file is the StructureFile referred to in the mdu
+with open(os.path.join(out_dir,'gates-v04.ini'),'wt') as fp:
     for idx in idxs:
         pli_fn=os.path.join(out_dir,"gate-%s.pli"%inv['model_name'][idx])
         dio.write_pli(pli_fn, [ (inv['model_name'][idx], # label
