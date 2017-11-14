@@ -170,16 +170,19 @@ idxs=np.nonzero(sel)[0]
 # the resulting ini file is the StructureFile referred to in the mdu
 with open(os.path.join(out_dir,'gates-v04.ini'),'wt') as fp:
     for idx in idxs:
-        pli_fn=os.path.join(out_dir,"gate-%s.pli"%inv['model_name'][idx])
+        pli_base_fn="gate-%s.pli"%inv['model_name'][idx]
+        pli_fn=os.path.join(out_dir,pli_base_fn)
         dio.write_pli(pli_fn, [ (inv['model_name'][idx], # label
                                  np.array(inv['geom'][idx]) ) ] )
 
+        fp.write("[structure]\n")
         fp.write("type                         = gate\n")
         fp.write("id                           = %s\n"%inv['model_name'][idx])
-        fp.write("polylinefile                 = %s\n"%pli_fn)
+        fp.write("polylinefile                 = %s\n"%pli_base_fn)
         # not entirely sure of how these geometries are interpreted
         fp.write("lower_edge_level             = 10\n") # This can be a tim file
         fp.write("opening_width                = 5\n") # This can be a tim file
         fp.write("door_height                  = 5\n")
+        fp.write("sill_level                   = 10\n")
         fp.write("horizontal_opening_direction = symmetric\n")
         fp.write("\n")
