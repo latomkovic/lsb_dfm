@@ -175,14 +175,16 @@ with open(os.path.join(out_dir,'gates-v04.ini'),'wt') as fp:
         dio.write_pli(pli_fn, [ (inv['model_name'][idx], # label
                                  np.array(inv['geom'][idx]) ) ] )
 
+        # these parameters are a good starting point for alviso_a8
+        # may be too wide and/or too shallow for others.
         fp.write("[structure]\n")
         fp.write("type                         = gate\n")
         fp.write("id                           = %s\n"%inv['model_name'][idx])
         fp.write("polylinefile                 = %s\n"%pli_base_fn)
         # not entirely sure of how these geometries are interpreted
-        fp.write("lower_edge_level             = 10\n") # This can be a tim file
-        fp.write("opening_width                = 5\n") # This can be a tim file
-        fp.write("door_height                  = 5\n")
-        fp.write("sill_level                   = 10\n")
+        fp.write("lower_edge_level             = 1\n") # This can be a tim file
+        fp.write("opening_width                = 25\n") # This can be a tim file
+        fp.write("door_height                  = 15\n")
+        fp.write("sill_level                   = 1\n")
         fp.write("horizontal_opening_direction = symmetric\n")
         fp.write("\n")

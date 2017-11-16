@@ -11,6 +11,7 @@ import glob
 import pdb
 import io
 import shutil
+import subprocess
 import numpy as np
 import logging
 import xarray as xr
@@ -56,13 +57,23 @@ if 0: # medium winter run:
     run_name="medium_winter2016_01" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+75*DAY
-if 1: # short winter run, testing gates:
+if 0: # short winter run, testing gates:
+    # ultimately had to disable most of the gates due to a dfm issue
+    # but came back with new dfm version and it has been working well.
     run_name="short_winter2016_02" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+10*DAY
 
+if 1: # short winter run, testing gates:
+    # all gates now set to same as alviso.
+    run_name="short_winter2016_03" 
+    run_start=np.datetime64('2015-12-15')
+    run_stop=run_start+10*DAY
 
+nprocs=16
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
+
+dfm_bin_dir="/opt/software/delft/dfm/r52184-opt/bin"
 
 ## --------------------------------------------------
 
@@ -226,7 +237,7 @@ mdu['geometry','Kmx']=10
 
 if 1:  # Copy grid file into run directory and update mdu
     mdu['geometry','NetFile'] = os.path.basename(net_file)
-    dest=os.path.join(run_base_dir, net_file)
+    dest=os.path.join(run_base_dir, mdu['geometry','NetFile'])
     # write out the modified grid
     dfm_grid.write_dfm(grid,dest,overwrite=True)
 
@@ -285,8 +296,33 @@ if 1:
         mdu['output','MapInterval'] = 3600
         mdu['output','HisInterval'] = 900
         
-## 
-mdu.write(os.path.join(run_base_dir,run_name+".mdu"))
+##
+mdu_fn=os.path.join(run_base_dir,run_name+".mdu")
+mdu.write(mdu_fn)
 
+##
+
+# As of r52184, explicitly built with metis support, partitioning can be done automatically
+# from here.
+
+cmd="%s/mpiexec -n %d %s/dflowfm --partition:ndomains=%d %s"%(dfm_bin_dir,nprocs,dfm_bin_dir,nprocs,
+                                                              mdu['geometry','NetFile'])
+pwd=os.getcwd()
+try:
+    os.chdir(run_base_dir)
+    res=subprocess.call(cmd,shell=True)
+finally:
+    os.chdir(pwd)
+
+
+# similar, but for the mdu:
+cmd="%s/generate_parallel_mdu.sh %s %d 6"%(dfm_bin_dir,os.path.basename(mdu_fn),nprocs)
+try:
+    os.chdir(run_base_dir)
+    res=subprocess.call(cmd,shell=True)
+finally:
+    os.chdir(pwd)
+
+    
 # 10 days at 0.5h => 42G
 # 75 days at 1h => 150G
