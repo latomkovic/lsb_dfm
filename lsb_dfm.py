@@ -40,6 +40,7 @@ if 0: # nice short setup for testing:
     run_name="short_10d_20170925_p16" 
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+10*DAY
+
 if 0: # wy2013 with spinup
     run_name="wy2013" 
     run_start=np.datetime64('2012-08-01')
@@ -64,12 +65,28 @@ if 0: # short winter run, testing gates:
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+10*DAY
 
-if 1: # short winter run, testing gates:
+if 0: # short winter run, testing gates:
     # all gates now set to same as alviso.
     run_name="short_winter2016_03" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+10*DAY
 
+if 0: # wider gates in the fixed weirs, no change to bathy
+    # all gates now set to same as alviso.
+    run_name="short_winter2016_04" 
+    run_start=np.datetime64('2015-12-15')
+    run_stop=run_start+10*DAY
+
+if 0: # returning to short summer setup
+    run_name="short_summer2016_00" 
+    run_start=np.datetime64('2016-06-01')
+    run_stop=run_start+10*DAY
+
+if 1: # winter run, slightly longer, and with a "better" IC
+    run_name="short_winter2016_05" 
+    run_start=np.datetime64('2015-12-15')
+    run_stop=run_start+20*DAY
+    
 nprocs=16
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
 
@@ -115,15 +132,42 @@ for fn in [old_bc_fn]:
 
 ##
 
+## --------------------------------------------------------------------------------
+# Edits to the template mdu:
+# 
+
+mdu=dio.MDUFile('template.mdu')
+
+if 1: # set dates
+    # RefDate can only be specified to day precision
+    mdu['time','RefDate'] = utils.to_datetime(ref_date).strftime('%Y%m%d')
+    mdu['time','Tunit'] = 'M' # minutes.  kind of weird, but stick with what was used already
+    mdu['time','TStart'] = 0
+    mdu['time','TStop'] = int( (run_stop - run_start) / np.timedelta64(1,'m') )
+
+mdu['geometry','LandBoundaryFile'] = os.path.join(rel_static_dir,"deltabay.ldb")
+
+# Start with 2D:
+# mdu['geometry','Kmx']=1
+# On to 3D, for better or worse
+mdu['geometry','Kmx']=10
+
+# update location of the boundary conditions
+# this has the source/sinks which cannot be written in the new style file
+mdu['external forcing','ExtForceFile']=os.path.basename(old_bc_fn)
+
 # Load the grid now -- it's used for clarifying some inputs, but
 # is also modified to deepen areas near inflows, before being written
 # out near the end of the script
 # Bathy for LSB is evolving, so a few steps required to possibly update it here.
 
 net_bathy_file=net_file.replace("_net.nc","_bathy_net.nc")
+bathy_file="inputs-static/merged_2m.tif"
 assert net_bathy_file!=net_file
+
 if ( (not os.path.exists(net_bathy_file))
-     or (os.stat(net_file).st_mtime >= os.stat(net_bathy_file).st_mtime) ):
+     or (os.stat(net_file).st_mtime >= os.stat(net_bathy_file).st_mtime)
+     or (os.stat(bathy_file).st_mtime >= os.stat(net_bathy_file).st_mtime)  ):
     grid=dfm_grid.DFMGrid(net_file)
     log.info("Will update bathymetry in grid - 2 minutes?")
     set_bathy.set_lsb_bathy(grid)
@@ -148,13 +192,6 @@ if ( (not os.path.exists(edges_shp))
 else:
     log.info("Edge shapefile exists.  Will leave as is.")
 
-##
-
-# WIND
-sfb_dfm_utils.add_erddap_ludwig_wind(run_base_dir,
-                                     run_start,run_stop,
-                                     old_bc_fn)
-                                         
 ##
 
 # features which have manually set locations for this grid
@@ -206,11 +243,6 @@ sfb_dfm_utils.add_ocean(run_base_dir,
                         factor=0.901)
 
 ##
-
-sfb_dfm_utils.add_initial_salinity(run_base_dir,
-                                   static_dir=abs_static_dir,
-                                   old_bc_fn=old_bc_fn,
-                                   all_flows_unit=ALL_FLOWS_UNIT)
 ## 
 if 1:            
     lines=["QUANTITY=frictioncoefficient",
@@ -222,25 +254,40 @@ if 1:
     with open(old_bc_fn,'at') as fp:
         fp.write("\n".join(lines))
 
-## --------------------------------------------------------------------------------
-# Edits to the template mdu:
-# 
-
-mdu=dio.MDUFile('template.mdu')
-
-mdu['geometry','LandBoundaryFile'] = os.path.join(rel_static_dir,"deltabay.ldb")
-
-# Start with 2D:
-# mdu['geometry','Kmx']=1
-# On to 3D, for better or worse
-mdu['geometry','Kmx']=10
-
 if 1:  # Copy grid file into run directory and update mdu
     mdu['geometry','NetFile'] = os.path.basename(net_file)
     dest=os.path.join(run_base_dir, mdu['geometry','NetFile'])
     # write out the modified grid
     dfm_grid.write_dfm(grid,dest,overwrite=True)
 
+
+## Initial salinity - do this once the grid has been written out
+if 0:# always the same, 2016-06-01 field:
+    sfb_dfm_utils.add_initial_salinity(run_base_dir,
+                                       static_dir=abs_static_dir,
+                                       old_bc_fn=old_bc_fn,
+                                       all_flows_unit=ALL_FLOWS_UNIT)
+else:
+    sfb_dfm_utils.add_initial_salinity_dyn(run_base_dir,
+                                           abs_static_dir,
+                                           mdu,
+                                           run_start)
+    
+
+
+
+# WIND
+ludwig_ok=sfb_dfm_utils.add_erddap_ludwig_wind(run_base_dir,
+                                               run_start,run_stop,
+                                               old_bc_fn)
+if not ludwig_ok:
+    const_ok=sfb_dfm_utils.add_constant_wind(run_base_dir,mdu,[4,0],run_start,run_stop)
+    assert const_ok
+    
+##
+
+
+    
 fixed_weir_out=os.path.join(base_dir,'fixed_weirs','out')
 if 1: # fixed weir file is just referenced as static input
     # mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'FlowFM_fxw.pli')
@@ -258,17 +305,7 @@ if 1: # add in gates, also derived in fixed_weirs
                      os.path.join(run_base_dir,'gates-v04.ini') )
     for f in glob.glob( os.path.join(fixed_weir_out,'gate-*.pli') ):
         shutil.copyfile( f, os.path.join(run_base_dir, os.path.basename(f) ) )
-    
-if 1: # set dates
-    # RefDate can only be specified to day precision
-    mdu['time','RefDate'] = utils.to_datetime(ref_date).strftime('%Y%m%d')
-    mdu['time','Tunit'] = 'M' # minutes.  kind of weird, but stick with what was used already
-    mdu['time','TStart'] = 0
-    mdu['time','TStop'] = int( (run_stop - run_start) / np.timedelta64(1,'m') )
 
-if 1: # update location of the boundary conditions
-    # this has the source/sinks which cannot be written in the new style file
-    mdu['external forcing','ExtForceFile']=os.path.basename(old_bc_fn)
 
 if 0: # Would be adding evaporation as negative rain here.
     pass

@@ -177,14 +177,43 @@ with open(os.path.join(out_dir,'gates-v04.ini'),'wt') as fp:
 
         # these parameters are a good starting point for alviso_a8
         # may be too wide and/or too shallow for others.
+
+        # not entirely sure of how these geometries are interpreted
+        # Okay - after much trial and error, seems like
+        # sill_level is the elevation of the fixed, weir-like structure below
+        # a moving gate.
+        # lower_edge_level is the elevation of a gate which may be flush with
+        # sill level (flow is allowed only by horizontal opening), below the
+        # sill level (functionally the same as flush), or above the sill_level
+        # (flow is allowed through a vertical gap between sill and the gate)
+        # opening_width: the horizontal opening, i.e. a gate that slides horizontally
+        # and partially blocks the flow.  NOTE!!! this appears to work only in
+        # integer number of flux faces.  i.e. opening_width cannot be used to
+        # create a 1m wide sluice, unless you have 1m wide grid cells.
+        # door_height: should probably just be very large.  In theory this would
+        # allow flow over the gate, but some comments in the code suggest that
+        # is not implemented.
+        # sill_width: an upper bound on opening width, defaults to the length of
+        # the flux faces
+
+        name=inv['model_name'][idx]
+        
         fp.write("[structure]\n")
         fp.write("type                         = gate\n")
-        fp.write("id                           = %s\n"%inv['model_name'][idx])
+        fp.write("id                           = %s\n"%name)
         fp.write("polylinefile                 = %s\n"%pli_base_fn)
-        # not entirely sure of how these geometries are interpreted
-        fp.write("lower_edge_level             = 1\n") # This can be a tim file
-        fp.write("opening_width                = 25\n") # This can be a tim file
         fp.write("door_height                  = 15\n")
-        fp.write("sill_level                   = 1\n")
+        
+        if name=='a8_alviso':
+            fp.write("lower_edge_level             = 1\n") # This can be a tim file
+            fp.write("opening_width                = 25\n") # This can be a tim file
+            fp.write("sill_level                   = 1\n")
+        else:
+            # More like a culvert
+            fp.write("lower_edge_level             = -0.95\n") # This can be a tim file
+            fp.write("opening_width                = 0\n") # This can be a tim file
+            fp.write("sill_level                   = -1.0\n")
+            
+        # the GUI seems to require this to be present.
         fp.write("horizontal_opening_direction = symmetric\n")
         fp.write("\n")
