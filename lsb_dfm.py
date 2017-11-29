@@ -82,11 +82,16 @@ if 0: # returning to short summer setup
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+10*DAY
 
-if 1: # winter run, slightly longer, and with a "better" IC
+if 0: # winter run, slightly longer, and with a "better" IC
     run_name="short_winter2016_05" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+20*DAY
-    
+
+if 1: # winter run, nice and long 
+    run_name="medium_winter2016_02" 
+    run_start=np.datetime64('2015-12-15')
+    run_stop=run_start+75*DAY
+
 nprocs=16
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
 
@@ -147,10 +152,7 @@ if 1: # set dates
 
 mdu['geometry','LandBoundaryFile'] = os.path.join(rel_static_dir,"deltabay.ldb")
 
-# Start with 2D:
-# mdu['geometry','Kmx']=1
-# On to 3D, for better or worse
-mdu['geometry','Kmx']=10
+mdu['geometry','Kmx']=10 # 10 layers
 
 # update location of the boundary conditions
 # this has the source/sinks which cannot be written in the new style file
@@ -238,11 +240,10 @@ sfb_dfm_utils.add_ocean(run_base_dir,
                         run_start,run_stop,ref_date,
                         static_dir=abs_static_dir,
                         grid=grid,
+                        factor=0.901,
                         old_bc_fn=old_bc_fn,
-                        all_flows_unit=ALL_FLOWS_UNIT,
-                        factor=0.901)
+                        all_flows_unit=ALL_FLOWS_UNIT)
 
-##
 ## 
 if 1:            
     lines=["QUANTITY=frictioncoefficient",
@@ -273,7 +274,6 @@ else:
                                            mdu,
                                            run_start)
     
-
 
 
 # WIND
