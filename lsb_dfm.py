@@ -87,14 +87,21 @@ if 0: # winter run, slightly longer, and with a "better" IC
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+20*DAY
 
-if 1: # winter run, nice and long 
+if 0: # winter run, nice and long 
     run_name="medium_winter2016_02" 
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+75*DAY
 
+if 1: # reprise of LSB model, 2018-03-26
+    # include evaporation, following full bay model.
+    run_name="short_summer2016_01" 
+    run_start=np.datetime64('2016-06-01')
+    run_stop=run_start+20*DAY
+
 nprocs=16
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
 
+# despite issues with DWAQ output, this remains a good version.
 dfm_bin_dir="/opt/software/delft/dfm/r52184-opt/bin"
 
 ## --------------------------------------------------
@@ -307,8 +314,8 @@ if 1: # add in gates, also derived in fixed_weirs
         shutil.copyfile( f, os.path.join(run_base_dir, os.path.basename(f) ) )
 
 
-if 0: # Would be adding evaporation as negative rain here.
-    pass
+if 1: 
+    sfb_dfm_utils.add_cimis_evap_precip(run_base_dir,mdu,scale_evap=1.0)
 
 if 1: # output locations
     mdu['output','CrsFile'] = os.path.join(rel_static_dir,"SB-observationcrosssection.pli")
