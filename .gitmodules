@@ -8,6 +8,3 @@
 	path = sfb_dfm_utils
 	url = ssh://git@stash.sfei.org:7999/nm/sfb_dfm_utils.git
         branch = master
-[submodule "sfb_dfm"]
-	path = sfb_dfm
-	url = ssh://git@stash.sfei.org:7999/nm/sfb_dfm.git
