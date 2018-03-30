@@ -1,3 +1,5 @@
 __pycache__
 lsb_v99_bathy_net.nc
+.ipynb*
+fig-*
 *.pyc
