@@ -93,8 +93,11 @@ if 0: # winter run, nice and long
     run_stop=run_start+75*DAY
 
 if 1: # reprise of LSB model, 2018-03-26
-    # include evaporation, following full bay model.
-    run_name="short_summer2016_01" 
+    # "short_summer2016_01": include evaporation, following full bay model.
+    
+    # actually the initial go at this showed a lot of elevated salt
+    # so maybe at this level of calibration, try dropping the evaporation.
+    run_name="short_summer2016_02" 
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+20*DAY
 
@@ -270,19 +273,11 @@ if 1:  # Copy grid file into run directory and update mdu
 
 
 ## Initial salinity - do this once the grid has been written out
-if 0:# always the same, 2016-06-01 field:
-    sfb_dfm_utils.add_initial_salinity(run_base_dir,
-                                       static_dir=abs_static_dir,
-                                       old_bc_fn=old_bc_fn,
-                                       all_flows_unit=ALL_FLOWS_UNIT)
-else:
-    sfb_dfm_utils.add_initial_salinity_dyn(run_base_dir,
-                                           abs_static_dir,
-                                           mdu,
-                                           run_start)
+sfb_dfm_utils.add_initial_salinity_dyn(run_base_dir,
+                                       abs_static_dir,
+                                       mdu,
+                                       run_start)
     
-
-
 # WIND
 ludwig_ok=sfb_dfm_utils.add_erddap_ludwig_wind(run_base_dir,
                                                run_start,run_stop,
@@ -314,7 +309,7 @@ if 1: # add in gates, also derived in fixed_weirs
         shutil.copyfile( f, os.path.join(run_base_dir, os.path.basename(f) ) )
 
 
-if 1: 
+if 0:  # this is creating a lot of high-salt spikes - omit for now
     sfb_dfm_utils.add_cimis_evap_precip(run_base_dir,mdu,scale_evap=1.0)
 
 if 1: # output locations
@@ -370,3 +365,12 @@ finally:
     
 # 10 days at 0.5h => 42G
 # 75 days at 1h => 150G
+
+cmd="%s/mpiexec -n %d %s/dflowfm --autostartstop %s"%(dfm_bin_dir,nprocs,dfm_bin_dir,
+                                                      os.path.basename(mdu_fn))
+pwd=os.getcwd()
+try:
+    os.chdir(run_base_dir)
+    res=subprocess.call(cmd,shell=True)
+finally:
+    os.chdir(pwd)
