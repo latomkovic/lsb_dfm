@@ -101,6 +101,7 @@ SobekDFM_umin_method= 0                   # Method for minimal velocity treshold
 [physics]
 UnifFrictCoef     = 0.023               # Uniform friction coefficient (0: no friction)
 UnifFrictType     = 1                   # Uniform friction type (0: Chezy, 1: Manning, 2: White-Colebrook, 3: idem, WAQUA style)
+IFRCTYP = 1  # Pretty sure that is the default, but just to be clear.
 UnifFrictCoef1D   = 0.023               # Uniform friction coefficient in 1D links (0: no friction)
 UnifFrictCoefLin  = 0                   # Uniform linear friction coefficient for ocean models (m/s) (0: no friction)(0: no friction)
 Umodlin           = 1                   # Linear friction umod, for ifrctyp=4,5,6
@@ -212,7 +213,7 @@ Wrimap_flow_flux_q1= 0                   # Write flow flux to map file (1: yes, 
 Wrimap_spiral_flow= 0                   # Write spiral flow to map file (1: yes, 0: no)
 Wrimap_numlimdt   = 1                   # Write the number times a cell was Courant limiting to map file (1: yes, 0: no)
 Wrimap_taucurrent = 1                   # Write the shear stress to map file (1: yes, 0: no)
-Wrimap_chezy      = 0                   # Write the chezy roughness to map file (1: yes, 0: no)
+Wrimap_chezy      = 1                   # Write the chezy roughness to map file (1: yes, 0: no)
 Wrimap_turbulence = 1                   # Write vicww, k and eps to map file (1: yes, 0: no)
 Wrimap_wind       = 1                   # Write wind velocities to map file (1: yes, 0: no)
 Wrimap_heat_fluxes= 1                   # Write heat fluxes to map file (1: yes, 0: no)

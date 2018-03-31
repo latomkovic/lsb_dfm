@@ -92,12 +92,19 @@ if 0: # winter run, nice and long
     run_start=np.datetime64('2015-12-15')
     run_stop=run_start+75*DAY
 
-if 1: # reprise of LSB model, 2018-03-26
+if 0: # reprise of LSB model, 2018-03-26
     # "short_summer2016_01": include evaporation, following full bay model.
     
     # actually the initial go at this showed a lot of elevated salt
     # so maybe at this level of calibration, try dropping the evaporation.
-    run_name="short_summer2016_02" 
+    run_name="short_summer2016_02"
+    run_start=np.datetime64('2016-06-01')
+    run_stop=run_start+1*DAY
+
+if 1:
+    # Increase friction around LSB, output effective chezy, force
+    # friction type to Chezy (likely the default already)
+    run_name="short_summer2016_03"
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+20*DAY
 
