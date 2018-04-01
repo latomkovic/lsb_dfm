@@ -1,5 +1,6 @@
 __pycache__
 lsb_v99_bathy_net.nc
+river_check*.png
 .ipynb*
 fig-*
 *.pyc

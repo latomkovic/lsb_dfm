@@ -101,12 +101,19 @@ if 0: # reprise of LSB model, 2018-03-26
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+1*DAY
 
-if 1:
+if 0:
     # Increase friction around LSB, output effective chezy, force
     # friction type to Chezy (likely the default already)
+    # that didn't improve things much
     run_name="short_summer2016_03"
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+20*DAY
+
+if 1: # slightly longer lsb summer run
+    run_name="short_summer2016_04"
+    run_start=np.datetime64('2016-06-01')
+    run_stop=run_start+90*DAY
+    
 
 nprocs=16
 ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
