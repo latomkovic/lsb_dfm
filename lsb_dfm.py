@@ -109,10 +109,15 @@ if 0:
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+20*DAY
 
-if 1: # slightly longer lsb summer run
+if 0: # slightly longer lsb summer run
     run_name="short_summer2016_04"
     run_start=np.datetime64('2016-06-01')
     run_stop=run_start+90*DAY
+
+if 1: # re-run a short winter run
+    run_name="short_winter2015_05"
+    run_start=np.datetime64("2015-12-15")
+    run_stop=np.datetime64("2016-01-30")
     
 
 nprocs=16
