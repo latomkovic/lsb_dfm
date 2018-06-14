@@ -1,5 +1,5 @@
 """
-The incoming grid has no bathymetry.
+The incoming grid, lsb_v99_net.nc has no bathymetry.
 
 This script sets bathymetry on the nodes in two ways:
 1. A first pass interpolates from the sfb_dfm_v2 grid, so most nodes

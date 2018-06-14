@@ -17,30 +17,33 @@ write_grid_shp.py
   grid representation into GIS.
   
 runs
-  Script-generated simulation setups are in subdirectories below here.
-  
-sample_run_dfm
-  Not currently used.  Reference for how to start multiprocessor runs.
+  Script-generated simulation setups are in subdirectories below herea
   
 sfbay_freshwater
 sfbay_potw
-  Git submodules holding forcing data for rivers and wastewater discharges.
+  Git submodules holding forcing data for rivers and wastewater discharges
   
-sfb_dfm.py
+lsb_dfm.py
   Main script for generating new runs.
   
-sfei_v19_net.nc
-  Grid
+lsb_v99_net.nc
+  Grid, without bathymetry, in non-ugrid DFM format
+
+lsb_v99_bathy_net.nc
+  Grid, with bathymetry, in non-ugrid DFM format
   
 template.mdu
   Template model definition.  Settings which needn't be set dynamically can
-  be set here.  Can be tweaked in sfb_dfm.py
+  be set here.  lsb_dfm.py reads this in and modifies a small subset of
+  parameters dynamically.
   
-update_alviso_bathy.py
-plot_sources.py
-  Temporary dev-related scripts for troubleshooting some issues.  Probably
-  will be removed down the road.
-  
-
 # Process
 
+## Bathymetry
+
+
+# TODO
+
+plotting/plot_salt.py is old.  Move salt_plots.py into plotting, document.
+
+Are there files in static which can be removed?
