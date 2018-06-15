@@ -37,17 +37,13 @@ log=logging.getLogger('set_bathy')
 
 merged_2m_path='inputs-static/merged_2m.tif'
 
-if not os.path.exists(merged_2m_path):
-    raise Exception("Copy or symlink merged_2m.tif to %s"%merged_2m_path)
+def check_bathy():
+    if not os.path.exists(merged_2m_path):
+        raise Exception("Copy or symlink merged_2m.tif to %s, or run download_bathy.py"%merged_2m_path)
 
 
 def set_lsb_bathy(grid):
-    if 0:
-        plt.figure(10).clf()
-        fig,ax=plt.subplots(num=10)
-        ecoll=g.plot_edges(lw=0.3,color='k')
-        ncoll=g.plot_nodes(values=g.nodes['depth']) # ds.NetNode_z
-        plot_utils.cbar(ncoll)
+    check_bathy()
 
     # First, load in the original sfb_dfm grid to get bathymetry
     log.info("Loading SFB DFM v2 grid")
@@ -69,7 +65,7 @@ def set_lsb_bathy(grid):
     lsb_z=sfb_dfm_field(lsb_X) # still some nans at this point
 
     #
-    
+
     log.info("Loading LSB dem from %s"%merged_2m_path)
     dem=field.GdalGrid(merged_2m_path)
 
@@ -91,7 +87,7 @@ def set_lsb_bathy(grid):
     node_depths[still_missing]=sfb_dfm_field.interpolate( lsb_X[still_missing,:],
                                                           'nearest' )
     assert np.isnan(node_depths).sum()==0
-    
+
     # Update the grid
     grid.nodes['depth']=node_depths
 
