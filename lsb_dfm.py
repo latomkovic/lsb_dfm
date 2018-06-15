@@ -28,7 +28,7 @@ if __name__=='__main__':
 
 log=logging.getLogger('lsb_dfm')
 
-import sfb_dfm_utils 
+import sfb_dfm_utils
 import set_bathy
 
 DAY=np.timedelta64(86400,'s') # useful for adjusting times
@@ -36,78 +36,6 @@ DAY=np.timedelta64(86400,'s') # useful for adjusting times
 ## --------------------------------------------------
 
 # Parameters to control more specific aspects of the run
-if 0: # nice short setup for testing:
-    run_name="short_10d_20170925_p16" 
-    run_start=np.datetime64('2016-06-01')
-    run_stop=run_start+10*DAY
-
-if 0: # wy2013 with spinup
-    run_name="wy2013" 
-    run_start=np.datetime64('2012-08-01')
-    run_stop=np.datetime64('2013-10-01')
-if 0: # short setup for testing a winter run:
-    # was missing some breaks in the levees
-    # run_name="short_winter2016_00" 
-    run_name="short_winter2016_01" 
-    run_start=np.datetime64('2015-01-01')
-    run_stop=run_start+10*DAY
-if 0: # medium winter run:
-    # run_name="medium_winter2016_00"
-    # That had a bad lag from error in ocean.py
-    # Also amplified throughout the bay.
-    run_name="medium_winter2016_01" 
-    run_start=np.datetime64('2015-12-15')
-    run_stop=run_start+75*DAY
-if 0: # short winter run, testing gates:
-    # ultimately had to disable most of the gates due to a dfm issue
-    # but came back with new dfm version and it has been working well.
-    run_name="short_winter2016_02" 
-    run_start=np.datetime64('2015-12-15')
-    run_stop=run_start+10*DAY
-
-if 0: # short winter run, testing gates:
-    # all gates now set to same as alviso.
-    run_name="short_winter2016_03" 
-    run_start=np.datetime64('2015-12-15')
-    run_stop=run_start+10*DAY
-
-if 0: # wider gates in the fixed weirs, no change to bathy
-    # all gates now set to same as alviso.
-    run_name="short_winter2016_04" 
-    run_start=np.datetime64('2015-12-15')
-    run_stop=run_start+10*DAY
-
-if 0: # returning to short summer setup
-    run_name="short_summer2016_00" 
-    run_start=np.datetime64('2016-06-01')
-    run_stop=run_start+10*DAY
-
-if 0: # winter run, slightly longer, and with a "better" IC
-    run_name="short_winter2016_05" 
-    run_start=np.datetime64('2015-12-15')
-    run_stop=run_start+20*DAY
-
-if 0: # winter run, nice and long 
-    run_name="medium_winter2016_02" 
-    run_start=np.datetime64('2015-12-15')
-    run_stop=run_start+75*DAY
-
-if 0: # reprise of LSB model, 2018-03-26
-    # "short_summer2016_01": include evaporation, following full bay model.
-    
-    # actually the initial go at this showed a lot of elevated salt
-    # so maybe at this level of calibration, try dropping the evaporation.
-    run_name="short_summer2016_02"
-    run_start=np.datetime64('2016-06-01')
-    run_stop=run_start+1*DAY
-
-if 0:
-    # Increase friction around LSB, output effective chezy, force
-    # friction type to Chezy (likely the default already)
-    # that didn't improve things much
-    run_name="short_summer2016_03"
-    run_start=np.datetime64('2016-06-01')
-    run_stop=run_start+20*DAY
 
 if 0: # slightly longer lsb summer run
     run_name="short_summer2016_04"
@@ -118,13 +46,12 @@ if 1: # re-run a short winter run
     run_name="short_winter2015_05"
     run_start=np.datetime64("2015-12-15")
     run_stop=np.datetime64("2016-01-30")
-    
 
-nprocs=16
-ALL_FLOWS_UNIT=False # for debug, set all volumetric flow rates to 1m3/s if True
+nprocs=4
+
 
 # despite issues with DWAQ output, this remains a good version.
-dfm_bin_dir="/opt/software/delft/dfm/r52184-opt/bin"
+dfm_bin_dir="/home/rusty/src/dfm/r53925-opt/bin"
 
 ## --------------------------------------------------
 
@@ -142,7 +69,7 @@ rel_static_dir=os.path.relpath(abs_static_dir,
                                run_base_dir)
 
 
-# reference date - can only be specified to day precision, so 
+# reference date - can only be specified to day precision, so
 # truncate to day precision (rounds down)
 ref_date=run_start.astype('datetime64[D]')
 
@@ -168,7 +95,7 @@ for fn in [old_bc_fn]:
 
 ## --------------------------------------------------------------------------------
 # Edits to the template mdu:
-# 
+#
 
 mdu=dio.MDUFile('template.mdu')
 
@@ -205,11 +132,11 @@ if ( (not os.path.exists(net_bathy_file))
     log.info("Writing updated grid/bathy")
     dfm_grid.write_dfm(grid,net_bathy_file,overwrite=True)
 
-# Either way, read that back in 
+# Either way, read that back in
 log.info("Reading grid with bathy")
 grid=dfm_grid.DFMGrid(net_bathy_file)
 
-## 
+##
 
 # Write out a shapefile for the grid edges.
 # Run this after changing the grid.
@@ -234,9 +161,8 @@ sfb_dfm_utils.add_sfbay_freshwater(run_base_dir,
                                    freshwater_dir=os.path.join(base_dir, 'sfbay_freshwater'),
                                    grid=grid,
                                    dredge_depth=dredge_depth,
-                                   old_bc_fn=old_bc_fn,
-                                   all_flows_unit=ALL_FLOWS_UNIT)
-                     
+                                   old_bc_fn=old_bc_fn)
+
 ##
 
 # POTW inputs:
@@ -249,8 +175,7 @@ sfb_dfm_utils.add_sfbay_potw(run_base_dir,
                              potw_dir,
                              adjusted_pli_fn,
                              grid,dredge_depth,
-                             old_bc_fn,
-                             all_flows_unit=ALL_FLOWS_UNIT)
+                             old_bc_fn)
 
 ##
 
@@ -260,8 +185,7 @@ sfb_dfm_utils.add_delta_inflow(run_base_dir,
                                run_start,run_stop,ref_date,
                                static_dir=abs_static_dir,
                                grid=grid,dredge_depth=dredge_depth,
-                               old_bc_fn=old_bc_fn,
-                               all_flows_unit=ALL_FLOWS_UNIT)
+                               old_bc_fn=old_bc_fn)
 ##
 
 # For the short run, no data for temperature
@@ -270,11 +194,10 @@ sfb_dfm_utils.add_ocean(run_base_dir,
                         static_dir=abs_static_dir,
                         grid=grid,
                         factor=0.901,
-                        old_bc_fn=old_bc_fn,
-                        all_flows_unit=ALL_FLOWS_UNIT)
+                        old_bc_fn=old_bc_fn)
 
-## 
-if 1:            
+##
+if 1:
     lines=["QUANTITY=frictioncoefficient",
            "FILENAME=%s/friction12e.xyz"%rel_static_dir,
            "FILETYPE=7",
@@ -296,7 +219,7 @@ sfb_dfm_utils.add_initial_salinity_dyn(run_base_dir,
                                        abs_static_dir,
                                        mdu,
                                        run_start)
-    
+
 # WIND
 ludwig_ok=sfb_dfm_utils.add_erddap_ludwig_wind(run_base_dir,
                                                run_start,run_stop,
@@ -304,11 +227,11 @@ ludwig_ok=sfb_dfm_utils.add_erddap_ludwig_wind(run_base_dir,
 if not ludwig_ok:
     const_ok=sfb_dfm_utils.add_constant_wind(run_base_dir,mdu,[4,0],run_start,run_stop)
     assert const_ok
-    
+
 ##
 
 
-    
+
 fixed_weir_out=os.path.join(base_dir,'fixed_weirs','out')
 if 1: # fixed weir file is just referenced as static input
     # mdu['geometry','FixedWeirFile'] = os.path.join(rel_static_dir,'FlowFM_fxw.pli')
@@ -339,7 +262,7 @@ if 1:
     # Observation points taken from shapefile for easier editing/comparisons in GIS
     obs_pnts=wkb2shp.shp2geom(obs_shp_fn)
     obs_fn='observation_pnts.xyn'
-    
+
     with open(os.path.join(run_base_dir,obs_fn),'wt') as fp:
         for idx,row in enumerate(obs_pnts):
             xy=np.array(row['geom'])
@@ -353,7 +276,7 @@ if 1:
     if run_name.startswith('medium'):
         mdu['output','MapInterval'] = 3600
         mdu['output','HisInterval'] = 900
-        
+
 ##
 mdu_fn=os.path.join(run_base_dir,run_name+".mdu")
 mdu.write(mdu_fn)
@@ -381,7 +304,7 @@ try:
 finally:
     os.chdir(pwd)
 
-    
+
 # 10 days at 0.5h => 42G
 # 75 days at 1h => 150G
 

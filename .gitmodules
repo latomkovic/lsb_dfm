@@ -8,3 +8,6 @@
 	path = sfb_dfm_utils
 	url = https://github.com/rustychris/sfb_dfm_utils.git
         branch = master
+[submodule "sfb_dfm"]
+	path = sfb_dfm
+	url = https://github.com/rustychris/sfb_dfm.git

@@ -1,3 +1,12 @@
+# Getting The Model
+
+In addition to cloning this repository, it is necessary to clone the submodules"
+
+ ``git submodule update --init``
+ 
+The source bathymetry is uploaded to a THREDDS server at SFEI.  The script
+download_bathy.py will copy that inputs-static.
+
 # Files
 
 derived
@@ -44,6 +53,6 @@ template.mdu
 
 # TODO
 
-plotting/plot_salt.py is old.  Move salt_plots.py into plotting, document.
+``plotting/plot_salt.py`` is old.  Move salt_plots.py into plotting, document.
 
 Are there files in static which can be removed?
