@@ -4,8 +4,32 @@ In addition to cloning this repository, it is necessary to clone the submodules"
 
  ``git submodule update --init``
  
+# System Prerequisites
+
+The scripts rely on a number of typical and non-typical python modules:
+
+ - numpy
+ - matplotlib
+ - gdal
+ - stompy ( http://github.com/rustychris/stompy.git )
+ - rtree
+ - shapely
+ - pandas
+ - xarray
+ 
+## Download bathy
+
 The source bathymetry is uploaded to a THREDDS server at SFEI.  The script
 download_bathy.py will copy that inputs-static.
+
+
+## Generate Weirs
+
+cd fixed_weirs ; python extract_v04.py
+
+## Generate DFM Inputs
+
+python lsb_dfm.py
 
 # Files
 

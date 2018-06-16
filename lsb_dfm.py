@@ -170,12 +170,17 @@ sfb_dfm_utils.add_sfbay_freshwater(run_base_dir,
 # sources and sinks, so these come in via the old-style file.
 potw_dir=os.path.join(base_dir,'sfbay_potw')
 # why so slow?
+write_salt=mdu['physics','salinity']=='1'
+write_temp=mdu['physics','temperature']=='1'
+
 sfb_dfm_utils.add_sfbay_potw(run_base_dir,
                              run_start,run_stop,ref_date,
                              potw_dir,
                              adjusted_pli_fn,
                              grid,dredge_depth,
-                             old_bc_fn)
+                             old_bc_fn,
+                             write_temp=write_temp,
+                             write_salt=write_salt)
 
 ##
 

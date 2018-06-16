@@ -67,12 +67,12 @@ footprint=np.array( [[0,1,1,1,0],
                      [1,1,1,1,1],
                      [0,1,1,1,0]] )
 
-## 
+##
 
 # The real deal - update dem in place (in RAM, not on disk)
 dem.F=ndimage.maximum_filter(dem.F,footprint=footprint)
 
-## 
+##
 res=field.ConstantField(5.0) # target output linear resolution
 
 # count total features so that files can be concatenated without issue.
